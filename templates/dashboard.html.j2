@@ -1,0 +1,12 @@
+{% extends "layout.html.j2" %}
+{% block content %}
+<h1 class="text-center">Active Tropical Cyclones</h1>
+<ul>
+  {% for s in storms %}
+  <li>{{ s.name }}  {{ s.intensity }} ({{ s.latitude }}, {{ s.longitude }})</li>
+  {% else %}
+  <li>No storms yet</li>
+  {% endfor %}
+</ul>
+{% endblock %}
+
