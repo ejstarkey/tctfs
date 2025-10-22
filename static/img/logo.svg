@@ -1,0 +1,76 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <!-- TCTFS Logo - Tropical Cyclone symbol -->
+  <defs>
+    <linearGradient id="cycloneGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:1" />
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Background circle -->
+  <circle cx="100" cy="100" r="95" fill="none" stroke="url(#cycloneGradient)" stroke-width="3" opacity="0.2"/>
+  
+  <!-- Cyclone spiral -->
+  <g transform="translate(100, 100)" filter="url(#glow)">
+    <!-- Center eye -->
+    <circle cx="0" cy="0" r="15" fill="#ffffff" stroke="url(#cycloneGradient)" stroke-width="3"/>
+    
+    <!-- Spiral arms -->
+    <path d="M 0,-15 Q 30,-30 45,-15 Q 60,0 45,15 Q 30,30 0,15" 
+          fill="none" 
+          stroke="url(#cycloneGradient)" 
+          stroke-width="8" 
+          stroke-linecap="round"
+          opacity="0.8"/>
+    
+    <path d="M 0,-15 Q -30,-30 -45,-15 Q -60,0 -45,15 Q -30,30 0,15" 
+          fill="none" 
+          stroke="url(#cycloneGradient)" 
+          stroke-width="8" 
+          stroke-linecap="round"
+          opacity="0.8"
+          transform="rotate(180)"/>
+    
+    <!-- Outer spiral -->
+    <path d="M 45,-15 Q 70,-40 85,-25 Q 100,-10 90,10 Q 80,30 60,40" 
+          fill="none" 
+          stroke="url(#cycloneGradient)" 
+          stroke-width="6" 
+          stroke-linecap="round"
+          opacity="0.6"/>
+    
+    <path d="M -45,-15 Q -70,-40 -85,-25 Q -100,-10 -90,10 Q -80,30 -60,40" 
+          fill="none" 
+          stroke="url(#cycloneGradient)" 
+          stroke-width="6" 
+          stroke-linecap="round"
+          opacity="0.6"/>
+  </g>
+  
+  <!-- Direction arrow (showing motion) -->
+  <g transform="translate(100, 40)">
+    <path d="M 0,0 L -8,12 L 0,8 L 8,12 Z" 
+          fill="#3b82f6" 
+          opacity="0.7"/>
+  </g>
+  
+  <!-- Text -->
+  <text x="100" y="175" 
+        font-family="Arial, sans-serif" 
+        font-size="18" 
+        font-weight="bold" 
+        text-anchor="middle" 
+        fill="#1f2937">TCTFS</text>
+  <text x="100" y="190" 
+        font-family="Arial, sans-serif" 
+        font-size="10" 
+        text-anchor="middle" 
+        fill="#6b7280">Cyclone Forecast Service</text>
+</svg>

@@ -1,0 +1,113 @@
+{% extends "layout.html.j2" %}
+
+{% block title %}Forecast Panel - {{ storm.name or 'UNNAMED' }} - Admin - TCTFS{% endblock %}
+
+{% block content %}
+<div class="forecast-panel">
+    <div class="mb-6">
+        <a href="{{ url_for('admin.storm_browser') }}" class="text-blue-600 hover:text-blue-800">
+            ← Back to Storm Browser
+        </a>
+    </div>
+    
+    <h1 class="text-3xl font-bold text-gray-900 mb-2">
+        Forecast Diagnostics: {{ storm.name or 'UNNAMED' }} ({{ storm.storm_id }})
+    </h1>
+    <p class="text-gray-600 mb-8">AP1-AP30 Ensemble Mean Forecast Analysis</p>
+    
+    <!-- Member Coverage Chart -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h2 class="text-xl font-bold text-gray-900 mb-4">Member Coverage by Lead Time</h2>
+        
+        {% if member_counts %}
+        <div class="overflow-x-auto">
+            <table class="min-w-full">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">Lead Time (h)</th>
+                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">Member Count</th>
+                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">Coverage</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    {% for lead, count in member_counts.items() %}
+                    <tr>
+                        <td class="px-4 py-2 text-sm font-mono">{{ lead }}</td>
+                        <td class="px-4 py-2 text-sm">{{ count }} / 30</td>
+                        <td class="px-4 py-2">
+                            <div class="w-full bg-gray-200 rounded-full h-4">
+                                <div class="bg-blue-600 h-4 rounded-full" style="width: {{ (count / 30 * 100)|int }}%"></div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-gray-600 text-center py-4">No member coverage data available</p>
+        {% endif %}
+    </div>
+    
+    <!-- Forecast Points Table -->
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <h2 class="text-xl font-bold text-gray-900 mb-4">Forecast Points</h2>
+        
+        {% if forecast_points %}
+        <div class="overflow-x-auto">
+            <table class="min-w-full text-sm">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">Lead (h)</th>
+                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">Valid Time</th>
+                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">Position</th>
+                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">Vmax (kt)</th>
+                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">MSLP (hPa)</th>
+                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">Members</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    {% for fp in forecast_points %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-2 font-mono">{{ fp.lead_time_hours }}</td>
+                        <td class="px-4 py-2">{{ fp.valid_at_utc.strftime('%m/%d %H:%M') }}</td>
+                        <td class="px-4 py-2 font-mono">{{ "%.2f"|format(fp.center_lat) }}, {{ "%.2f"|format(fp.center_lon) }}</td>
+                        <td class="px-4 py-2 font-semibold">{{ fp.vmax_kt|int if fp.vmax_kt else 'N/A' }}</td>
+                        <td class="px-4 py-2">{{ fp.mslp_hpa|int if fp.mslp_hpa else 'N/A' }}</td>
+                        <td class="px-4 py-2">
+                            <span class="px-2 py-1 rounded text-xs font-semibold
+                                {% if fp.member_count >= 25 %}bg-green-100 text-green-800
+                                {% elif fp.member_count >= 15 %}bg-yellow-100 text-yellow-800
+                                {% else %}bg-red-100 text-red-800{% endif %}">
+                                {{ fp.member_count }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-gray-600 text-center py-4">No forecast points available</p>
+        {% endif %}
+    </div>
+    
+    <!-- Rebuild Action -->
+    <div class="mt-6">
+        <form method="POST" action="{{ url_for('admin.rebuild_forecast', storm_id=storm.id) }}">
+            <button type="submit" 
+                    class="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition font-semibold"
+                    onclick="return confirm('Rebuild AP-mean forecast for this storm?')">
+                Rebuild Forecast
+            </button>
+            <p class="text-sm text-gray-600 mt-2">
+                Re-fetch A-Deck data and recompute AP1-AP30 ensemble mean
+            </p>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+{% endblock %}

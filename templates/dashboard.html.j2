@@ -1,12 +1,105 @@
 {% extends "layout.html.j2" %}
+
+{% block title %}Dashboard - TCTFS{% endblock %}
+
 {% block content %}
-<h1 class="text-center">Active Tropical Cyclones</h1>
-<ul>
-  {% for s in storms %}
-  <li>{{ s.name }}  {{ s.intensity }} ({{ s.latitude }}, {{ s.longitude }})</li>
-  {% else %}
-  <li>No storms yet</li>
-  {% endfor %}
-</ul>
+<div class="dashboard-wrapper">
+    <div class="dashboard-container">
+        <!-- Header -->
+        <div class="dashboard-header">
+            <div>
+                <h1>Active Tropical Cyclones</h1>
+                <p class="subtitle">Real-time tracking and forecasting • Northern & Southern Hemispheres</p>
+            </div>
+
+            <div class="filter-controls">
+                <!-- Basin Filter -->
+                <select id="basin-filter" class="filter-select">
+                    <option value="">All Basins</option>
+                    <option value="WP" {% if basin_filter == 'WP' %}selected{% endif %}>Western Pacific</option>
+                    <option value="EP" {% if basin_filter == 'EP' %}selected{% endif %}>Eastern Pacific</option>
+                    <option value="AL" {% if basin_filter == 'AL' %}selected{% endif %}>Atlantic</option>
+                    <option value="SH" {% if basin_filter == 'SH' %}selected{% endif %}>Southern Hemisphere</option>
+                    <option value="IO" {% if basin_filter == 'IO' %}selected{% endif %}>Indian Ocean</option>
+                </select>
+
+                <select id="status-filter" class="filter-select">
+                    <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
+                    <option value="dormant" {% if status_filter == 'dormant' %}selected{% endif %}>Dormant</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Search Bar -->
+        <div class="search-bar">
+            <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input type="text"
+                   id="search-input"
+                   placeholder="Search by storm name or ID..."
+                   value="{{ search_query or '' }}"
+                   class="search-input">
+        </div>
+
+        <!-- Storm Grid -->
+        {% if storms and storms|length > 0 %}
+            <div class="storm-grid">
+                {% for storm in storms %}
+                <a href="{{ url_for('storm_detail.detail', storm_id=storm.storm_id) }}"
+                   class="storm-card">
+                    <!-- Thumbnail -->
+                    <div class="storm-thumbnail">
+                        {% if storm.last_thumb_url %}
+                            <img src="{{ storm.last_thumb_url }}" alt="{{ storm.name or 'UNNAMED' }}">
+                        {% else %}
+                            <div class="storm-placeholder">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
+                                </svg>
+                            </div>
+                        {% endif %}
+                        <div class="storm-badge {{ storm.status }}">
+                            {{ storm.status|upper }}
+                        </div>
+                    </div>
+
+                    <!-- Info -->
+                    <div class="storm-info">
+                        <div class="storm-name">{{ storm.name or 'UNNAMED' }}</div>
+                        <div class="storm-id">{{ storm.storm_id }} • {{ storm.basin }}</div>
+                        
+                        <div class="storm-meta">
+                            <div class="meta-item">
+                                <span class="meta-label">Last Update</span>
+                                <span class="meta-value">{{ storm.last_seen.strftime('%Y-%m-%d %H:%M UTC') if storm.last_seen else 'N/A' }}</span>
+                            </div>
+                            <div class="meta-item">
+                                <span class="meta-label">Advisory</span>
+                                <span class="meta-value">#{{ storm.last_advisory_no or 'N/A' }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+        {% else %}
+            <!-- Empty State -->
+            <div class="no-storms">
+                <div class="empty-icon-wrapper">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" class="empty-storm-icon">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
+                    </svg>
+                </div>
+                <h2>No Active Storms</h2>
+                <p>There are currently no tropical cyclones being tracked.</p>
+                <p class="empty-hint">The system is monitoring CIMSS ADT for new developments.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
 {% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+{% endblock %}

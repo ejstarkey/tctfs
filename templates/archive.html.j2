@@ -1,0 +1,182 @@
+{% extends "layout.html.j2" %}
+
+{% block title %}Storm Archive - TCTFS{% endblock %}
+
+{% block content %}
+<div class="archive-container">
+    <header class="archive-header">
+        <h1>Tropical Cyclone Archive</h1>
+        <p class="subtitle">Historical storms preserved for perpetuity</p>
+    </header>
+
+    <!-- Search & Filter Section -->
+    <section class="archive-search">
+        <form id="archiveSearchForm" class="search-form">
+            <div class="search-grid">
+                <div class="form-group">
+                    <label for="basin">Basin</label>
+                    <select id="basin" name="basin">
+                        <option value="">All Basins</option>
+                        <option value="WP">Western Pacific</option>
+                        <option value="EP">Eastern Pacific</option>
+                        <option value="AL">Atlantic</option>
+                        <option value="IO">Indian Ocean</option>
+                        <option value="SH">Southern Hemisphere</option>
+                        <option value="CP">Central Pacific</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="season">Season</label>
+                    <select id="season" name="season">
+                        <option value="">All Seasons</option>
+                        {% for year in range(current_year, 1979, -1) %}
+                        <option value="{{ year }}">{{ year }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="minIntensity">Min Intensity</label>
+                    <select id="minIntensity" name="min_intensity">
+                        <option value="">Any</option>
+                        <option value="34">Tropical Storm (34kt+)</option>
+                        <option value="64">Typhoon/Hurricane (64kt+)</option>
+                        <option value="96">Major Hurricane (96kt+)</option>
+                        <option value="100">Major Typhoon (100kt+)</option>
+                        <option value="130">Super Typhoon (130kt+)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="searchName">Storm Name</label>
+                    <input type="text" id="searchName" name="name" placeholder="e.g., Yagi, Haiyan">
+                </div>
+
+                <div class="form-group form-actions">
+                    <button type="submit" class="btn btn-primary">Search</button>
+                    <button type="reset" class="btn btn-secondary">Clear</button>
+                </div>
+            </div>
+        </form>
+    </section>
+
+    <!-- Statistics Summary -->
+    <section class="archive-stats" id="archiveStats">
+        <div class="stat-card">
+            <span class="stat-value" id="totalStorms">-</span>
+            <span class="stat-label">Archived Systems</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-value" id="namedStorms">-</span>
+            <span class="stat-label">Named Storms</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-value" id="majorStorms">-</span>
+            <span class="stat-label">Major Systems</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-value" id="totalACE">-</span>
+            <span class="stat-label">Total ACE</span>
+        </div>
+    </section>
+
+    <!-- Quick Access Sections -->
+    <section class="quick-access">
+        <h2>Browse Archives</h2>
+        <div class="quick-links">
+            <a href="#recent" class="quick-link-card">
+                <h3>Recent Archives</h3>
+                <p>Last 30 days</p>
+            </a>
+            <a href="#season" class="quick-link-card">
+                <h3>Current Season</h3>
+                <p>{{ current_year }}</p>
+            </a>
+            <a href="#major" class="quick-link-card">
+                <h3>Major Systems</h3>
+                <p>100kt+ intensity</p>
+            </a>
+            <a href="#notable" class="quick-link-card">
+                <h3>Notable Storms</h3>
+                <p>Historical significance</p>
+            </a>
+        </div>
+    </section>
+
+    <!-- Results Grid -->
+    <section class="archive-results">
+        <div class="results-header">
+            <h2>Archive Results <span id="resultCount" class="count">(0)</span></h2>
+            <div class="view-controls">
+                <button class="view-toggle active" data-view="grid">Grid</button>
+                <button class="view-toggle" data-view="list">List</button>
+            </div>
+        </div>
+
+        <!-- Loading State -->
+        <div id="loadingSpinner" class="loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>Loading archived storms...</p>
+        </div>
+
+        <!-- Empty State -->
+        <div id="emptyState" class="empty-state" style="display: none;">
+            <p>No archived storms match your search criteria.</p>
+        </div>
+
+        <!-- Storm Grid -->
+        <div id="stormGrid" class="storm-grid">
+            <!-- Populated by JavaScript -->
+        </div>
+
+        <!-- Pagination -->
+        <div id="pagination" class="pagination" style="display: none;">
+            <button id="prevPage" class="btn btn-secondary">← Previous</button>
+            <span id="pageInfo" class="page-info">Page 1 of 1</span>
+            <button id="nextPage" class="btn btn-secondary">Next →</button>
+        </div>
+    </section>
+
+    <!-- Notable Storms Section -->
+    <section class="notable-storms">
+        <h2>Notable Historical Storms</h2>
+        <div class="notable-grid">
+            <!-- Hardcoded notable storms for quick access -->
+            <div class="notable-card">
+                <img src="/static/img/notable/haiyan.jpg" alt="Typhoon Haiyan">
+                <div class="notable-info">
+                    <h3>Typhoon Haiyan (Yolanda)</h3>
+                    <p class="notable-year">2013 - Western Pacific</p>
+                    <p class="notable-stats">Peak: 170kt / 895hPa</p>
+                    <a href="/archive/storms?name=Haiyan&season=2013" class="btn btn-sm">View Storm</a>
+                </div>
+            </div>
+
+            <div class="notable-card">
+                <img src="/static/img/notable/katrina.jpg" alt="Hurricane Katrina">
+                <div class="notable-info">
+                    <h3>Hurricane Katrina</h3>
+                    <p class="notable-year">2005 - Atlantic</p>
+                    <p class="notable-stats">Peak: 150kt / 902hPa</p>
+                    <a href="/archive/storms?name=Katrina&season=2005" class="btn btn-sm">View Storm</a>
+                </div>
+            </div>
+
+            <div class="notable-card">
+                <img src="/static/img/notable/winston.jpg" alt="Cyclone Winston">
+                <div class="notable-info">
+                    <h3>Cyclone Winston</h3>
+                    <p class="notable-year">2016 - Southern Hemisphere</p>
+                    <p class="notable-stats">Peak: 160kt / 915hPa</p>
+                    <a href="/archive/storms?name=Winston&season=2016" class="btn btn-sm">View Storm</a>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/archive.js"></script>
+{% endblock %}

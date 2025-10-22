@@ -1,8 +1,6 @@
-from flask import Blueprint, jsonify
+"""API blueprints."""
+from .auth import bp as auth_bp
+from .storms import bp as storms_bp
+from .archive import archive_bp
 
-api_bp = Blueprint("api", __name__)
-
-@api_bp.route("/ping")
-def ping():
-    return jsonify({"message": "pong"})
-
+__all__ = ['auth_bp', 'storms_bp', 'archive_bp']

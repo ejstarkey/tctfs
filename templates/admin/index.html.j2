@@ -1,0 +1,126 @@
+{% extends "layout.html.j2" %}
+
+{% block title %}Admin Dashboard - TCTFS{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <div class="admin-header">
+        <h1>Admin Dashboard</h1>
+        <div class="admin-user-info">
+            <span>Logged in as: <strong>{{ current_user.email }}</strong></span>
+        </div>
+    </div>
+
+    <!-- Stats Grid -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
+                </svg>
+            </div>
+            <div class="stat-info">
+                <div class="stat-label">Active Storms</div>
+                <div class="stat-value">{{ stats.active_storms if stats else 0 }}</div>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+            </div>
+            <div class="stat-info">
+                <div class="stat-label">Total Users</div>
+                <div class="stat-value">{{ stats.total_users if stats else 0 }}</div>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+            </div>
+            <div class="stat-info">
+                <div class="stat-label">Subscriptions</div>
+                <div class="stat-value">{{ stats.subscriptions if stats else 0 }}</div>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            </div>
+            <div class="stat-info">
+                <div class="stat-label">System Status</div>
+                <div class="stat-value" style="color: #10b981;">Healthy</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="quick-actions">
+        <h2>Quick Actions</h2>
+        <div class="actions-grid">
+            <a href="/admin/storms" class="action-card">
+                <div class="action-icon">🌀</div>
+                <div class="action-title">Manage Storms</div>
+                <div class="action-desc">View and manage storm data</div>
+            </a>
+
+            <a href="/admin/users" class="action-card">
+                <div class="action-icon">👥</div>
+                <div class="action-title">User Management</div>
+                <div class="action-desc">Manage user accounts and roles</div>
+            </a>
+
+            <a href="/admin/forecasts" class="action-card">
+                <div class="action-icon">📊</div>
+                <div class="action-title">Forecast Data</div>
+                <div class="action-desc">Review forecast models and AP-mean</div>
+            </a>
+
+            <a href="/admin/zones" class="action-card">
+                <div class="action-icon">⚠️</div>
+                <div class="action-title">Watch/Warning Zones</div>
+                <div class="action-desc">Configure zone generation parameters</div>
+            </a>
+
+            <a href="/admin/alerts" class="action-card">
+                <div class="action-icon">📧</div>
+                <div class="action-title">Alert Logs</div>
+                <div class="action-desc">View email alerts and delivery status</div>
+            </a>
+
+            <a href="/admin/audit" class="action-card">
+                <div class="action-icon">📝</div>
+                <div class="action-title">Audit Logs</div>
+                <div class="action-desc">Review system activity and changes</div>
+            </a>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="recent-activity">
+        <h2>Recent Activity</h2>
+        <div class="activity-list">
+            <div class="activity-item">
+                <div class="activity-time">Just now</div>
+                <div class="activity-desc">Admin logged in from {{ request.remote_addr }}</div>
+            </div>
+            <div class="activity-item">
+                <div class="activity-time">No recent activity</div>
+                <div class="activity-desc">System is awaiting storm data ingestion</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+{% endblock %}

@@ -1,13 +1,47 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>TCTFS</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>{% block title %}TCTFS - Tropical Cyclone Threat and Forecast Service{% endblock %}</title>
+    
+    {% include '_partials/base_head.html.j2' %}
+    
+    {% block extra_css %}{% endblock %}
 </head>
-<body>
-  {% block content %}{% endblock %}
-  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<body class="bg-gray-50 min-h-screen">
+    {% include '_partials/navbar.html.j2' %}
+    
+    <main class="container mx-auto px-4 py-8">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="mb-6 space-y-2">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} p-4 rounded-lg border 
+                            {% if category == 'success' %}bg-green-50 border-green-200 text-green-800
+                            {% elif category == 'error' %}bg-red-50 border-red-200 text-red-800
+                            {% elif category == 'warning' %}bg-yellow-50 border-yellow-200 text-yellow-800
+                            {% else %}bg-blue-50 border-blue-200 text-blue-800{% endif %}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+        
+        {% block content %}{% endblock %}
+    </main>
+    
+    <footer class="bg-gray-800 text-white py-8 mt-12">
+        <div class="container mx-auto px-4 text-center">
+            <p>&copy; {{ current_year or 2025 }} TCTFS. All rights reserved.</p>
+            <p class="text-gray-400 text-sm mt-2">
+                Data sources: University of Wisconsin CIMSS ADT, UCAR A-Decks
+            </p>
+        </div>
+    </footer>
+    
+    {% block extra_js %}{% endblock %}
 </body>
 </html>
-

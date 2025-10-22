@@ -1,11 +1,16 @@
-from flask import Blueprint, render_template
-from ...models.storm import Storm
+"""
+Web blueprints - Server-rendered pages.
+"""
+from .dashboard import bp as dashboard_bp
+from .storm_detail import bp as storm_detail_bp
+from .archive import bp as archive_bp
+from .account import bp as account_bp
+from .admin import bp as admin_bp
 
-web_bp = Blueprint("web", __name__)
-
-@web_bp.route("/")
-def dashboard():
-    # Placeholder  will show cyclone list later
-    storms = Storm.query.all()
-    return render_template("dashboard.html.j2", storms=storms)
-
+__all__ = [
+    'dashboard_bp',
+    'storm_detail_bp',
+    'archive_bp',
+    'account_bp',
+    'admin_bp',
+]

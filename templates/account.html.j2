@@ -1,0 +1,245 @@
+{% extends "layout.html.j2" %}
+
+{% block title %}Account Settings - TCTFS{% endblock %}
+
+{% block content %}
+<div class="account-container max-w-4xl mx-auto">
+    <h1 class="text-3xl font-bold text-gray-900 mb-8">Account Settings</h1>
+    
+    <!-- Tabs -->
+    <div class="bg-white rounded-lg shadow-md">
+        <div class="border-b border-gray-200">
+            <nav class="flex space-x-8 px-6" aria-label="Tabs">
+                <a href="{{ url_for('account.profile') }}" 
+                   class="tab-link py-4 px-1 border-b-2 font-medium text-sm
+                       {% if active_tab == 'profile' %}border-blue-600 text-blue-600
+                       {% else %}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{% endif %}">
+                    Profile
+                </a>
+                
+                <a href="{{ url_for('account.subscriptions') }}" 
+                   class="tab-link py-4 px-1 border-b-2 font-medium text-sm
+                       {% if active_tab == 'subscriptions' %}border-blue-600 text-blue-600
+                       {% else %}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{% endif %}">
+                    Subscriptions
+                </a>
+                
+                <a href="{{ url_for('account.change_password') }}" 
+                   class="tab-link py-4 px-1 border-b-2 font-medium text-sm
+                       {% if active_tab == 'password' %}border-blue-600 text-blue-600
+                       {% else %}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{% endif %}">
+                    Password
+                </a>
+                
+                <a href="{{ url_for('account.two_factor') }}" 
+                   class="tab-link py-4 px-1 border-b-2 font-medium text-sm
+                       {% if active_tab == '2fa' %}border-blue-600 text-blue-600
+                       {% else %}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{% endif %}">
+                    Two-Factor Auth
+                </a>
+            </nav>
+        </div>
+        
+        <div class="p-6">
+            <!-- Profile Tab -->
+            {% if active_tab == 'profile' %}
+            <div class="tab-content">
+                <h2 class="text-xl font-bold text-gray-900 mb-4">Profile Information</h2>
+                
+                <form method="POST" action="{{ url_for('account.update_profile') }}" class="space-y-4">
+                    <div>
+                        <label for="email" class="block text-sm font-semibold text-gray-700 mb-2">Email</label>
+                        <input type="email" 
+                               id="email" 
+                               value="{{ user.email }}" 
+                               disabled 
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed">
+                        <p class="text-xs text-gray-500 mt-1">Email cannot be changed</p>
+                    </div>
+                    
+                    <div>
+                        <label for="full_name" class="block text-sm font-semibold text-gray-700 mb-2">Full Name</label>
+                        <input type="text" 
+                               id="full_name" 
+                               name="full_name"
+                               value="{{ user.full_name or '' }}" 
+                               placeholder="Your full name"
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Role</label>
+                        <span class="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm font-medium">
+                            {{ user.role|upper }}
+                        </span>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Member Since</label>
+                        <p class="text-gray-600">{{ user.created_at.strftime('%B %d, %Y') }}</p>
+                    </div>
+                    
+                    <div class="pt-4">
+                        <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition font-semibold">
+                            Update Profile
+                        </button>
+                    </div>
+                </form>
+            </div>
+            {% endif %}
+            
+            <!-- Subscriptions Tab -->
+            {% if active_tab == 'subscriptions' %}
+            <div class="tab-content">
+                <h2 class="text-xl font-bold text-gray-900 mb-4">Alert Subscriptions</h2>
+                
+                {% if subscriptions %}
+                <div class="space-y-4">
+                    {% for sub in subscriptions %}
+                    <div class="subscription-card border border-gray-200 rounded-lg p-4 flex items-center justify-between">
+                        <div>
+                            <h3 class="font-semibold text-gray-900">
+                                {% if sub.storm %}
+                                    {{ sub.storm.name or 'UNNAMED' }} ({{ sub.storm.storm_id }})
+                                {% else %}
+                                    {{ sub.basin }} Basin
+                                {% endif %}
+                            </h3>
+                            <p class="text-sm text-gray-600">
+                                Mode: <span class="font-medium">{{ sub.mode|capitalize }}</span>
+                            </p>
+                        </div>
+                        
+                        <button class="unsubscribe-btn text-red-600 hover:text-red-800 font-semibold" 
+                                data-subscription-id="{{ sub.id }}">
+                            Unsubscribe
+                        </button>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-8">
+                    <p class="text-gray-600">You have no active subscriptions</p>
+                    <a href="{{ url_for('dashboard.index') }}" class="text-blue-600 hover:text-blue-800 mt-2 inline-block">
+                        Browse storms to subscribe
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+            
+            <!-- Password Tab -->
+            {% if active_tab == 'password' %}
+            <div class="tab-content">
+                <h2 class="text-xl font-bold text-gray-900 mb-4">Change Password</h2>
+                
+                <form method="POST" action="{{ url_for('account.change_password') }}" class="space-y-4 max-w-md">
+                    <div>
+                        <label for="current_password" class="block text-sm font-semibold text-gray-700 mb-2">Current Password</label>
+                        <input type="password" 
+                               id="current_password" 
+                               name="current_password" 
+                               required 
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    
+                    <div>
+                        <label for="new_password" class="block text-sm font-semibold text-gray-700 mb-2">New Password</label>
+                        <input type="password" 
+                               id="new_password" 
+                               name="new_password" 
+                               required 
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <p class="text-xs text-gray-500 mt-1">
+                            Must be at least 8 characters with uppercase, lowercase, number, and special character
+                        </p>
+                    </div>
+                    
+                    <div>
+                        <label for="confirm_password" class="block text-sm font-semibold text-gray-700 mb-2">Confirm New Password</label>
+                        <input type="password" 
+                               id="confirm_password" 
+                               name="confirm_password" 
+                               required 
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    
+                    <div class="pt-4">
+                        <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition font-semibold">
+                            Change Password
+                        </button>
+                    </div>
+                </form>
+            </div>
+            {% endif %}
+            
+            <!-- 2FA Tab -->
+            {% if active_tab == '2fa' %}
+            <div class="tab-content">
+                <h2 class="text-xl font-bold text-gray-900 mb-4">Two-Factor Authentication</h2>
+                
+                {% if user.totp_enabled %}
+                <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+                    <div class="flex items-center">
+                        <svg class="w-6 h-6 text-green-600 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                        </svg>
+                        <div>
+                            <p class="font-semibold text-green-900">Two-factor authentication is enabled</p>
+                            <p class="text-sm text-green-700">Your account is protected with 2FA</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <form method="POST" action="{{ url_for('account.disable_2fa') }}">
+                    <button type="submit" class="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition font-semibold">
+                        Disable 2FA
+                    </button>
+                </form>
+                {% else %}
+                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+                    <p class="text-yellow-900 font-semibold">Two-factor authentication is not enabled</p>
+                    <p class="text-sm text-yellow-700 mt-1">Add an extra layer of security to your account</p>
+                </div>
+                
+                {% if qr_code %}
+                <div class="mb-6">
+                    <p class="text-gray-700 mb-4">Scan this QR code with your authenticator app:</p>
+                    <img src="{{ qr_code }}" alt="2FA QR Code" class="border border-gray-200 rounded-lg">
+                </div>
+                
+                <form method="POST" action="{{ url_for('account.verify_2fa') }}" class="max-w-md">
+                    <div class="mb-4">
+                        <label for="token" class="block text-sm font-semibold text-gray-700 mb-2">Enter verification code</label>
+                        <input type="text" 
+                               id="token" 
+                               name="token" 
+                               placeholder="000000" 
+                               maxlength="6"
+                               pattern="[0-9]{6}"
+                               required 
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-center text-2xl font-mono">
+                    </div>
+                    
+                    <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition font-semibold">
+                        Verify and Enable 2FA
+                    </button>
+                </form>
+                {% else %}
+                <form method="POST" action="{{ url_for('account.enable_2fa') }}">
+                    <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition font-semibold">
+                        Enable 2FA
+                    </button>
+                </form>
+                {% endif %}
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/forms.js') }}"></script>
+{% endblock %}

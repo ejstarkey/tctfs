@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Advisory: {{ storm_name }}</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #1e40af; color: white; padding: 20px; border-radius: 8px 8px 0 0; }
+        .content { background: #f9fafb; padding: 20px; border: 1px solid #e5e7eb; border-top: none; }
+        .storm-details { background: white; padding: 15px; border-radius: 6px; margin: 15px 0; }
+        .detail-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e5e7eb; }
+        .detail-label { font-weight: bold; color: #6b7280; }
+        .footer { background: #f3f4f6; padding: 15px; text-align: center; font-size: 12px; color: #6b7280; border-radius: 0 0 8px 8px; }
+        .btn { display: inline-block; background: #1e40af; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 15px 0; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🌀 New Advisory Issued</h1>
+        <h2>{{ storm_name }} ({{ storm_id }})</h2>
+    </div>
+    
+    <div class="content">
+        <p>A new advisory has been issued for {{ storm_name }}.</p>
+        
+        <div class="storm-details">
+            <h3>Advisory Details</h3>
+            <div class="detail-row">
+                <span class="detail-label">Time:</span>
+                <span>{{ advisory.issued_at_utc }}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Position:</span>
+                <span>{{ advisory.latitude }}°, {{ advisory.longitude }}°</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Max Winds:</span>
+                <span>{{ advisory.vmax_kt }} kt</span>
+            </div>
+            {% if advisory.mslp_hpa %}
+            <div class="detail-row">
+                <span class="detail-label">Pressure:</span>
+                <span>{{ advisory.mslp_hpa }} hPa</span>
+            </div>
+            {% endif %}
+            {% if advisory.motion_speed_kt %}
+            <div class="detail-row">
+                <span class="detail-label">Motion:</span>
+                <span>{{ advisory.motion_bearing_deg }}° at {{ advisory.motion_speed_kt }} kt</span>
+            </div>
+            {% endif %}
+        </div>
+        
+        <a href="https://tctfs.example.com/storms/{{ storm_id }}" class="btn">View Full Details</a>
+        
+        <p><small>This is an automated notification from TCTFS. To manage your subscriptions, visit your account settings.</small></p>
+    </div>
+    
+    <div class="footer">
+        <p>&copy; {{ current_year }} TCTFS. All rights reserved.</p>
+        <p><a href="https://tctfs.example.com/account/subscriptions">Manage Subscriptions</a> | <a href="https://tctfs.example.com/unsubscribe">Unsubscribe</a></p>
+    </div>
+</body>
+</html>

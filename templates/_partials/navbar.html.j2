@@ -1,0 +1,25 @@
+<nav class="navbar">
+    <div class="navbar-container">
+        <div class="navbar-brand">
+            <a href="{{ url_for('dashboard.index') }}" class="brand-link">
+                <img src="{{ url_for('static', filename='img/cyclone-logo.png') }}" alt="TCTFS" class="brand-icon">
+                <span class="brand-text">TCTFS</span>
+            </a>
+        </div>
+        
+        <div class="navbar-menu">
+            <a href="{{ url_for('dashboard.index') }}" class="nav-link">Dashboard</a>
+            
+            {% if current_user.is_authenticated %}
+                {% if current_user.role == 'admin' %}
+                <a href="{{ url_for('admin.index') }}" class="nav-link">Admin</a>
+                {% endif %}
+                <form action="{{ url_for('api_auth.logout') }}" method="POST" style="display: inline;">
+                    <button type="submit" class="nav-link nav-button">Logout</button>
+                </form>
+            {% else %}
+                <a href="{{ url_for('api_auth.login') }}" class="nav-link">Login</a>
+            {% endif %}
+        </div>
+    </div>
+</nav>

@@ -1,0 +1,29 @@
+<!-- Base CSS and JS includes - NO INLINE STYLES OR SCRIPTS -->
+
+<!-- Favicon -->
+<link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/logo.svg') }}">
+
+<!-- CSS Files -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+{% if 'dashboard' in request.path %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+{% endif %}
+{% if 'storm' in request.path or 'map' in request.path %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/map.css') }}">
+{% endif %}
+{% if 'account' in request.path or 'login' in request.path %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/forms.css') }}">
+{% endif %}
+{% if 'admin' in request.path %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+{% endif %}
+
+<!-- MapLibre GL JS for mapping -->
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css">
+<script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+
+<!-- Socket.IO for real-time updates -->
+<script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
+
+<!-- Main app JS -->
+<script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
