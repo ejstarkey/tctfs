@@ -9,9 +9,8 @@ from datetime import datetime
 from tctfs_app.extensions import db, cache
 from tctfs_app.models import Storm, Advisory, ForecastPoint, Zone
 from tctfs_app.schemas import StormSchema, AdvisorySchema, ForecastSchema, ZoneSchema
-from tctfs_app.utils.http import etag_response, last_modified_response
 
-archive_bp = Blueprint('archive', __name__, url_prefix='/api/archive')
+archive_bp = Blueprint('api_archive', __name__, url_prefix='/api/archive')
 
 
 @archive_bp.route('/storms', methods=['GET'])

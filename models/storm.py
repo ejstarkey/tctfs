@@ -50,7 +50,11 @@ class Storm(db.Model):
     # Timestamps
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+    # Archive fields
+    archived_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    archival_reason = db.Column(db.String(50), nullable=True)
+    last_status_change_at = db.Column(db.DateTime(timezone=True), nullable=True)
+
     def __repr__(self):
         return f"<Storm {self.storm_id} '{self.name}' status={self.status}>"
     

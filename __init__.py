@@ -1,8 +1,9 @@
 from flask import Flask
 from .extensions import db, migrate, login_manager, mail, cache, socketio
 from .config import Config
-from .blueprints.web import dashboard_bp, storm_detail_bp, archive_bp, account_bp, admin_bp
+from .blueprints.web import dashboard_bp, storm_detail_bp, archive_bp as web_archive_bp, account_bp, admin_bp
 from .blueprints.api import auth_bp, storms_bp
+from .blueprints.api.archive import archive_bp as api_archive_bp
 from .middleware import setup_security_headers
 from .logging_config import setup_logging
 
@@ -37,14 +38,14 @@ def create_app():
     # Register web blueprints
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(storm_detail_bp)
-    app.register_blueprint(archive_bp)
+    app.register_blueprint(web_archive_bp)
     app.register_blueprint(account_bp)
     app.register_blueprint(admin_bp)
     
     # Register API blueprints
     app.register_blueprint(auth_bp)
     app.register_blueprint(storms_bp)
-    app.register_blueprint(archive_bp)
+    app.register_blueprint(api_archive_bp)
     
     # Simple health check
     @app.route("/health")
