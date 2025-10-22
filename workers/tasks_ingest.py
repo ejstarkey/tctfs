@@ -11,6 +11,8 @@ from ..models.storm import Storm
 from ..models.advisory import Advisory
 from geoalchemy2.shape import from_shape
 from shapely.geometry import Point
+from ..services.ingest.cimss_2dwind_fetch import get_cimss_2dwind_service
+from ..models.radii import Radii
 
 logger = logging.getLogger(__name__)
 
@@ -101,3 +103,92 @@ def health_check():
     """Health check task."""
     logger.info("Health check: OK")
     return "OK"
+
+@celery_app.task(name='tctfs_app.workers.tasks_ingest.ingest_radii_for_storm')
+def ingest_radii_for_storm(storm_id: str):
+    """Fetch and ingest wind radii from CIMSS 2dwind files."""
+    from .. import create_app
+    app = create_app()
+    
+    with app.app_context():
+        logger.info(f"🌬️ Ingesting radii for storm {storm_id}")
+        
+        storm = Storm.query.filter_by(storm_id=storm_id).first()
+        if not storm:
+            logger.error(f"Storm {storm_id} not found")
+            return
+        
+        service = get_cimss_2dwind_service()
+        radii_records = service.fetch_and_parse(storm_id)
+        
+        if not radii_records:
+            logger.warning(f"No radii data for {storm_id}")
+            return
+        
+        logger.info(f"Found {len(radii_records)} radii records")
+        
+        advisories = Advisory.query.filter_by(storm_id=storm.id).all()
+        advisory_by_time = {adv.issued_at_utc: adv for adv in advisories}
+        
+        radii_inserted = 0
+        
+        for record in radii_records:
+            timestamp = record['timestamp']
+            advisory = advisory_by_time.get(timestamp)
+            
+            if not advisory:
+                closest = None
+                min_diff = None
+                
+                for adv_time, adv in advisory_by_time.items():
+                    diff = abs((adv_time - timestamp).total_seconds())
+                    if diff <= 10800:
+                        if min_diff is None or diff < min_diff:
+                            min_diff = diff
+                            closest = adv
+                
+                advisory = closest
+            
+            if not advisory:
+                continue
+            
+            for quadrant, quad_radii in record['radii'].items():
+                existing = Radii.query.filter_by(
+                    advisory_id=advisory.id,
+                    quadrant=quadrant
+                ).first()
+                
+                if existing:
+                    existing.r34_nm = quad_radii['r34_nm']
+                    existing.r50_nm = quad_radii['r50_nm']
+                    existing.r64_nm = quad_radii['r64_nm']
+                else:
+                    radii = Radii(
+                        advisory_id=advisory.id,
+                        quadrant=quadrant,
+                        r34_nm=quad_radii['r34_nm'],
+                        r50_nm=quad_radii['r50_nm'],
+                        r64_nm=quad_radii['r64_nm']
+                    )
+                    db.session.add(radii)
+                
+                radii_inserted += 1
+        
+        db.session.commit()
+        logger.info(f"✅ Inserted {radii_inserted} radii records")
+
+
+@celery_app.task(name='tctfs_app.workers.tasks_ingest.ingest_radii_for_all_storms')
+def ingest_radii_for_all_storms():
+    """Ingest radii for all active storms."""
+    from .. import create_app
+    app = create_app()
+    
+    with app.app_context():
+        active_storms = Storm.query.filter_by(status='active').all()
+        
+        for storm in active_storms:
+            try:
+                ingest_radii_for_storm(storm.storm_id)
+            except Exception as e:
+                logger.error(f"Error ingesting radii for {storm.storm_id}: {e}")

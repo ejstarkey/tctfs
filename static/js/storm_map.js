@@ -96,10 +96,218 @@ async function loadStormData(stormId) {
         document.getElementById('current-category').textContent = getCategoryName(latest.vmax_kt);
         
         plotTrack(data.track);
+        addWindRadiiToggle();
         fitMapToTrack(data.track);
     } catch (error) {
         console.error('Error:', error);
     }
+}
+
+function addWindRadiiToggle() {
+    const toggleBtn = document.createElement('button');
+    toggleBtn.id = 'wind-radii-toggle';
+    toggleBtn.style.cssText = 'position: absolute; top: 20px; left: 400px; background: white; border: 2px solid #3b82f6; border-radius: 12px; padding: 18px 32px; box-shadow: 0 4px 16px rgba(0,0,0,0.25); cursor: pointer; font-weight: 700; font-size: 18px; z-index: 1000; transition: all 0.2s;';
+    toggleBtn.innerHTML = '🌬️ Wind Radii: ON';
+    toggleBtn.onmouseover = () => {
+        toggleBtn.style.transform = 'scale(1.05)';
+        toggleBtn.style.boxShadow = '0 6px 20px rgba(0,0,0,0.3)';
+    };
+    toggleBtn.onmouseout = () => {
+        toggleBtn.style.transform = 'scale(1)';
+        toggleBtn.style.boxShadow = '0 4px 16px rgba(0,0,0,0.25)';
+    };
+    toggleBtn.onclick = toggleWindRadii;
+    map.getContainer().appendChild(toggleBtn);
+}
+
+let windRadiiVisible = true;
+
+function toggleWindRadii() {
+    windRadiiVisible = !windRadiiVisible;
+    const btn = document.getElementById('wind-radii-toggle');
+    btn.innerHTML = `🌬️ Wind Radii: ${windRadiiVisible ? 'ON' : 'OFF'}`;
+    
+    const layers = ['wind-radii-34', 'wind-radii-50', 'wind-radii-64'];
+    layers.forEach(layer => {
+        if (map.getLayer(layer)) {
+            map.setLayoutProperty(layer, 'visibility', windRadiiVisible ? 'visible' : 'none');
+        }
+    });
+}
+
+function renderWindRadii(track) {
+    console.log('🌬️ Rendering wind radii for', track.length, 'points');
+    
+    // Remove existing radii layers
+    ['wind-radii-34', 'wind-radii-50', 'wind-radii-64'].forEach(id => {
+        if (map.getLayer(id)) map.removeLayer(id);
+        if (map.getSource(id)) map.removeSource(id);
+    });
+    
+    const keyPoints = selectKeyPoints(track);
+    console.log('🔑 Key points:', keyPoints.length);
+    
+    // Create quadrant wedges for each key point
+    const radii34Features = [];
+    const radii50Features = [];
+    const radii64Features = [];
+    
+    keyPoints.forEach((point, idx) => {
+        console.log(`Point ${idx}:`, {
+            lat: point.latitude,
+            lon: point.longitude,
+            vmax: point.vmax_kt,
+            hasRadii: !!point.radii,
+            radii: point.radii
+        });
+        
+        if (!point.radii) {
+            console.log(`⚠️ No radii data for point ${idx}`);
+            return;
+        }
+        
+        const isLatest = point.isLatest;
+        const baseOpacity = isLatest ? 1.0 : 0.05;
+        
+        // Each quadrant is a wedge (pie slice)
+        const quadrants = {
+            'NE': { start: 0, end: 90 },
+            'SE': { start: 90, end: 180 },
+            'SW': { start: 180, end: 270 },
+            'NW': { start: 270, end: 360 }
+        };
+        
+        Object.entries(quadrants).forEach(([quad, angles]) => {
+            const quadRadii = point.radii[quad];
+            if (!quadRadii) {
+                console.log(`⚠️ No radii for quadrant ${quad}`);
+                return;
+            }
+            
+            console.log(`✓ ${quad} radii:`, quadRadii);
+            
+            if (quadRadii.r34_nm && quadRadii.r34_nm > 0) {
+                const wedge = createWedge(
+                    point.longitude, point.latitude,
+                    quadRadii.r34_nm, angles.start, angles.end,
+                    baseOpacity * 0.1
+                );
+                radii34Features.push(wedge);
+                console.log(`  + Added R34 wedge (${quadRadii.r34_nm}nm)`);
+            }
+            
+            if (quadRadii.r50_nm && quadRadii.r50_nm > 0) {
+                const wedge = createWedge(
+                    point.longitude, point.latitude,
+                    quadRadii.r50_nm, angles.start, angles.end,
+                    baseOpacity * 0.3
+                );
+                radii50Features.push(wedge);
+                console.log(`  + Added R50 wedge (${quadRadii.r50_nm}nm)`);
+            }
+            
+            if (quadRadii.r64_nm && quadRadii.r64_nm > 0) {
+                const wedge = createWedge(
+                    point.longitude, point.latitude,
+                    quadRadii.r64_nm, angles.start, angles.end,
+                    baseOpacity * 0.8
+                );
+                radii64Features.push(wedge);
+                console.log(`  + Added R64 wedge (${quadRadii.r64_nm}nm)`);
+            }
+        });
+    });
+    
+    console.log('📊 Total features:', {
+        r34: radii34Features.length,
+        r50: radii50Features.length,
+        r64: radii64Features.length
+    });
+    
+    // Add R34 layer (lightest, below others)
+    if (radii34Features.length > 0) {
+        map.addSource('wind-radii-34', {
+            type: 'geojson',
+            data: { type: 'FeatureCollection', features: radii34Features }
+        });
+        map.addLayer({
+            id: 'wind-radii-34',
+            type: 'fill',
+            source: 'wind-radii-34',
+            paint: {
+                'fill-color': '#DC143C',
+                'fill-opacity': ['get', 'opacity']
+            }
+        }, 'storm-track-glow'); // Insert below track
+        console.log('✅ Added R34 layer');
+    }
+    
+    // Add R50 layer
+    if (radii50Features.length > 0) {
+        map.addSource('wind-radii-50', {
+            type: 'geojson',
+            data: { type: 'FeatureCollection', features: radii50Features }
+        });
+        map.addLayer({
+            id: 'wind-radii-50',
+            type: 'fill',
+            source: 'wind-radii-50',
+            paint: {
+                'fill-color': '#DC143C',
+                'fill-opacity': ['get', 'opacity']
+            }
+        }, 'storm-track-glow');
+        console.log('✅ Added R50 layer');
+    }
+    
+    // Add R64 layer (darkest, on top)
+    if (radii64Features.length > 0) {
+        map.addSource('wind-radii-64', {
+            type: 'geojson',
+            data: { type: 'FeatureCollection', features: radii64Features }
+        });
+        map.addLayer({
+            id: 'wind-radii-64',
+            type: 'fill',
+            source: 'wind-radii-64',
+            paint: {
+                'fill-color': '#DC143C',
+                'fill-opacity': ['get', 'opacity']
+            }
+        }, 'storm-track-glow');
+        console.log('✅ Added R64 layer');
+    }
+    
+    if (radii34Features.length === 0 && radii50Features.length === 0 && radii64Features.length === 0) {
+        console.error('❌ NO WIND RADII RENDERED - Check if API is returning radii data');
+    }
+}
+
+function createWedge(lon, lat, radiusNm, startAngle, endAngle, opacity) {
+    // Convert nautical miles to degrees (rough approximation)
+    const radiusDeg = radiusNm * 0.0167;
+    
+    const coordinates = [[lon, lat]];
+    
+    // Create arc
+    for (let angle = startAngle; angle <= endAngle; angle += 5) {
+        const rad = (angle * Math.PI) / 180;
+        const x = lon + radiusDeg * Math.cos(rad);
+        const y = lat + radiusDeg * Math.sin(rad);
+        coordinates.push([x, y]);
+    }
+    
+    // Close the wedge
+    coordinates.push([lon, lat]);
+    
+    return {
+        type: 'Feature',
+        geometry: {
+            type: 'Polygon',
+            coordinates: [coordinates]
+        },
+        properties: { opacity }
+    };
 }
 
 function getCategory(vmax) {
@@ -294,6 +502,9 @@ function plotTrack(track) {
             addCycloneEye(point, point.isLatest);
         }
     });
+    
+    // Render wind radii AFTER track but BEFORE tc-eye markers
+    renderWindRadii(track);
 }
 
 function addCycloneEye(point, isLatest) {
@@ -404,9 +615,18 @@ function addLowMarker(point) {
 }
 
 function fitMapToTrack(track) {
-    const bounds = new maplibregl.LngLatBounds();
-    track.forEach(p => bounds.extend([p.longitude, p.latitude]));
-    map.fitBounds(bounds, { padding: 100, maxZoom: 8, duration: 1000 });
+    if (!track || track.length === 0) return;
+    
+    // Get the latest position (current location)
+    const latest = track[track.length - 1];
+    
+    // Center on current position with zoom level 6
+    map.flyTo({
+        center: [latest.longitude, latest.latitude],
+        zoom: 6,
+        duration: 1500,
+        essential: true
+    });
 }
 
 document.addEventListener('DOMContentLoaded', () => {

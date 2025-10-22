@@ -59,17 +59,18 @@ def get_track(storm_id):
     # Use RAW SQL to bypass any ORM caching issues
     sql = text("""
         SELECT 
-            issued_at_utc,
-            ST_Y(center_geom) as latitude,
-            ST_X(center_geom) as longitude,
-            vmax_kt,
-            mslp_hpa,
-            motion_bearing_deg,
-            motion_speed_kt
-        FROM advisories
-        WHERE storm_id = :storm_id
-        AND center_geom IS NOT NULL
-        ORDER BY issued_at_utc ASC
+            a.id as advisory_id,
+            a.issued_at_utc,
+            ST_Y(a.center_geom) as latitude,
+            ST_X(a.center_geom) as longitude,
+            a.vmax_kt,
+            a.mslp_hpa,
+            a.motion_bearing_deg,
+            a.motion_speed_kt
+        FROM advisories a
+        WHERE a.storm_id = :storm_id
+        AND a.center_geom IS NOT NULL
+        ORDER BY a.issued_at_utc ASC
     """)
     
     result = db.session.execute(sql, {'storm_id': storm.id})
@@ -77,9 +78,38 @@ def get_track(storm_id):
     
     logger.info(f"📊 Found {len(rows)} advisories using RAW SQL")
     
+    # Get radii data
+    radii_sql = text("""
+        SELECT 
+            r.advisory_id,
+            r.quadrant,
+            r.r34_nm,
+            r.r50_nm,
+            r.r64_nm
+        FROM radii r
+        JOIN advisories a ON r.advisory_id = a.id
+        WHERE a.storm_id = :storm_id
+    """)
+    
+    radii_result = db.session.execute(radii_sql, {'storm_id': storm.id})
+    radii_rows = radii_result.fetchall()
+    
+    # Organize radii by advisory_id
+    radii_by_advisory = {}
+    for r in radii_rows:
+        if r.advisory_id not in radii_by_advisory:
+            radii_by_advisory[r.advisory_id] = {}
+        radii_by_advisory[r.advisory_id][r.quadrant] = {
+            'r34_nm': float(r.r34_nm) if r.r34_nm else None,
+            'r50_nm': float(r.r50_nm) if r.r50_nm else None,
+            'r64_nm': float(r.r64_nm) if r.r64_nm else None
+        }
+    
+    logger.info(f"📊 Found radii for {len(radii_by_advisory)} advisories")
+    
     track = []
     for row in rows:
-        track.append({
+        track_point = {
             'time': row.issued_at_utc.isoformat() if row.issued_at_utc else None,
             'latitude': float(row.latitude) if row.latitude else None,
             'longitude': float(row.longitude) if row.longitude else None,
@@ -87,7 +117,13 @@ def get_track(storm_id):
             'mslp_hpa': float(row.mslp_hpa) if row.mslp_hpa else None,
             'motion_bearing': float(row.motion_bearing_deg) if row.motion_bearing_deg else None,
             'motion_speed': float(row.motion_speed_kt) if row.motion_speed_kt else None
-        })
+        }
+        
+        # Add radii if available
+        if row.advisory_id in radii_by_advisory:
+            track_point['radii'] = radii_by_advisory[row.advisory_id]
+        
+        track.append(track_point)
     
     logger.info(f"✅ Returning {len(track)} track points")
     
