@@ -105,22 +105,17 @@ async function loadStormData(stormId) {
 function getCategory(vmax) {
     const scale = BASIN_SCALES[currentBasin];
     const thresholds = scale.thresholds;
-    
-    // thresholds for SH/IO: [34, 48, 64, 87, 108]
-    // categories: [0=Low, 1=Cat1, 2=Cat2, 3=Cat3, 4=Cat4, 5=Cat5]
-    
-    if (vmax < thresholds[1]) return 0;  // < 48kt = Tropical Low/TS (Category 0)
-    if (vmax < thresholds[2]) return 1;  // 48-63kt = Category 1
-    if (vmax < thresholds[3]) return 2;  // 64-86kt = Category 2
-    if (vmax < thresholds[4]) return 3;  // 87-107kt = Category 3
-    if (vmax < 140) return 4;  // 108-139kt = Category 4
-    return 5;  // 140+ = Category 5
+    if (vmax < thresholds[0]) return 0;
+    if (vmax < thresholds[1]) return 1;
+    if (vmax < thresholds[2]) return 2;
+    if (vmax < thresholds[3]) return 3;
+    if (vmax < thresholds[4]) return 4;
+    return 5;
 }
 
 function getCategoryText(vmax) {
     const cat = getCategory(vmax);
-    if (cat === 0) return 'LOW';
-    return cat.toString();
+    return cat === 0 ? 'LOW' : cat.toString();
 }
 
 function getCategoryName(vmax) {
@@ -223,15 +218,12 @@ function plotTrack(track) {
         }
     });
     
-    const keyPoints = selectKeyPoints(track);
-    
-    // Add small circles for non-latest key points
-    const nonLatestPoints = keyPoints.filter(p => !p.isLatest);
+    const keyPoints = selectKeyPoints(track).filter(p => !p.isLatest);
     map.addSource('storm-points', { 
         type: 'geojson', 
         data: { 
             type: 'FeatureCollection', 
-            features: nonLatestPoints.map(p => ({ 
+            features: keyPoints.map(p => ({ 
                 type: 'Feature', 
                 geometry: { type: 'Point', coordinates: [p.longitude, p.latitude]}, 
                 properties: { 
@@ -283,17 +275,27 @@ function plotTrack(track) {
         map.getCanvas().style.cursor = '';
     });
     
-    // Add markers ONLY at key points (already filtered by selectKeyPoints)
-    keyPoints.forEach(point => {
+    // Add LOW markers for all sub-cyclone strength positions
+    track.forEach((point, i) => {
         const vmax = point.vmax_kt || 0;
         const isCycloneStrength = vmax >= scale.thresholds[1];
+        const isLatest = i === track.length - 1;
         
         if (!isCycloneStrength) {
             addLowMarker(point);
-        } else {
-            addCycloneEye(point, point.isLatest);
+        } else if (!isLatest) {
+            addCycloneEye(point, false);
         }
     });
+    
+    // Add latest position (rotating if cyclone strength, LOW if not)
+    const latest = track[track.length - 1];
+    const latestVmax = latest.vmax_kt || 0;
+    if (latestVmax >= scale.thresholds[1]) {
+        addCycloneEye(latest, true);
+    } else {
+        addLowMarker(latest);
+    }
 }
 
 function addCycloneEye(point, isLatest) {

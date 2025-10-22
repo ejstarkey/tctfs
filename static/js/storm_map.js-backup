@@ -1,4 +1,4 @@
-// Storm Map - COMPLETE with category-colored tracks and proper tc-eye logic
+// Storm Map - COMPLETE with hover popups
 let map, stormData, eyeMarker = null, currentBasin = null;
 
 const BASIN_SCALES = {
@@ -54,8 +54,8 @@ function initStormMap(stormId) {
     map = new maplibregl.Map({
         container: 'storm-map',
         style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
-        center: [0, 0],
-        zoom: 2
+        center: [140, 20],
+        zoom: 4
     });
 
     map.addControl(new maplibregl.NavigationControl(), 'top-right');
@@ -77,7 +77,7 @@ function addLegend() {
     scale.categories.forEach(cat => {
         html += `<div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;"><div style="width: 20px; height: 20px; background: ${cat.color}; border-radius: 50%; border: 2px solid white;"></div><span style="font-size: 0.85rem;">${cat.name} ${cat.range}</span></div>`;
     });
-    html += `<div style="border-top: 1px solid #e5e7eb; padding-top: 0.75rem; margin-top: 0.75rem;"><div style="font-weight: 600; margin-bottom: 0.5rem; font-size: 0.85rem;">TRACK</div><div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;"><div style="width: 30px; height: 3px; background: linear-gradient(90deg, #5ebaff, #ff8f20);"></div><span style="font-size: 0.8rem;">Observed Track (Category Colored)</span></div><div style="display: flex; align-items: center; gap: 0.5rem;"><div style="width: 30px; height: 3px; background: #3b82f6; opacity: 0.5;"></div><span style="font-size: 0.8rem;">Forecast Track (50% opacity)</span></div></div>`;
+    html += `<div style="border-top: 1px solid #e5e7eb; padding-top: 0.75rem; margin-top: 0.75rem;"><div style="font-weight: 600; margin-bottom: 0.5rem; font-size: 0.85rem;">TRACK</div><div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;"><div style="width: 30px; height: 3px; background: #3b82f6;"></div><span style="font-size: 0.8rem;">Observed Track</span></div><div style="display: flex; align-items: center; gap: 0.5rem;"><div style="width: 30px; height: 3px; background: #3b82f6; opacity: 0.5;"></div><span style="font-size: 0.8rem;">Forecast Track (50% opacity)</span></div></div>`;
     legendDiv.innerHTML = html;
     map.getContainer().appendChild(legendDiv);
 }
@@ -105,22 +105,17 @@ async function loadStormData(stormId) {
 function getCategory(vmax) {
     const scale = BASIN_SCALES[currentBasin];
     const thresholds = scale.thresholds;
-    
-    // thresholds for SH/IO: [34, 48, 64, 87, 108]
-    // categories: [0=Low, 1=Cat1, 2=Cat2, 3=Cat3, 4=Cat4, 5=Cat5]
-    
-    if (vmax < thresholds[1]) return 0;  // < 48kt = Tropical Low/TS (Category 0)
-    if (vmax < thresholds[2]) return 1;  // 48-63kt = Category 1
-    if (vmax < thresholds[3]) return 2;  // 64-86kt = Category 2
-    if (vmax < thresholds[4]) return 3;  // 87-107kt = Category 3
-    if (vmax < 140) return 4;  // 108-139kt = Category 4
-    return 5;  // 140+ = Category 5
+    if (vmax < thresholds[0]) return 0;
+    if (vmax < thresholds[1]) return 1;
+    if (vmax < thresholds[2]) return 2;
+    if (vmax < thresholds[3]) return 3;
+    if (vmax < thresholds[4]) return 4;
+    return 5;
 }
 
 function getCategoryText(vmax) {
     const cat = getCategory(vmax);
-    if (cat === 0) return 'LOW';
-    return cat.toString();
+    return cat === 0 ? 'LOW' : cat.toString();
 }
 
 function getCategoryName(vmax) {
@@ -129,7 +124,7 @@ function getCategoryName(vmax) {
 }
 
 function getCategoryColor(cat) {
-    return BASIN_SCALES[currentBasin].categories[cat].color;
+    return BASIN_SCALES[currentBasin].textColors[cat];
 }
 
 function catmullRomSpline(points, numSegments = 15) {
@@ -169,69 +164,19 @@ function selectKeyPoints(track) {
 
 function plotTrack(track) {
     const scale = BASIN_SCALES[currentBasin];
+    const coords = track.map(p => [p.longitude, p.latitude]);
+    const smooth = catmullRomSpline(coords);
     
-    // Create line segments colored by category
-    const trackSegments = [];
-    for (let i = 0; i < track.length - 1; i++) {
-        const cat = getCategory(track[i].vmax_kt || 0);
-        const color = scale.categories[cat].color;
-        
-        trackSegments.push({
-            type: 'Feature',
-            geometry: {
-                type: 'LineString',
-                coordinates: [
-                    [track[i].longitude, track[i].latitude],
-                    [track[i + 1].longitude, track[i + 1].latitude]
-                ]
-            },
-            properties: {
-                category: cat,
-                color: color,
-                vmax: track[i].vmax_kt || 0
-            }
-        });
-    }
+    map.addSource('storm-track', { type: 'geojson', data: { type: 'FeatureCollection', features: [{ type: 'Feature', geometry: { type: 'LineString', coordinates: smooth }}]}});
+    map.addLayer({ id: 'storm-track-glow', type: 'line', source: 'storm-track', paint: { 'line-color': '#3b82f6', 'line-width': 8, 'line-blur': 4, 'line-opacity': 0.4 }});
+    map.addLayer({ id: 'storm-track-line', type: 'line', source: 'storm-track', paint: { 'line-color': '#3b82f6', 'line-width': 3 }});
     
-    map.addSource('storm-track-segments', {
-        type: 'geojson',
-        data: {
-            type: 'FeatureCollection',
-            features: trackSegments
-        }
-    });
-    
-    map.addLayer({
-        id: 'storm-track-glow',
-        type: 'line',
-        source: 'storm-track-segments',
-        paint: {
-            'line-color': ['get', 'color'],
-            'line-width': 8,
-            'line-blur': 4,
-            'line-opacity': 0.4
-        }
-    });
-    
-    map.addLayer({
-        id: 'storm-track-line',
-        type: 'line',
-        source: 'storm-track-segments',
-        paint: {
-            'line-color': ['get', 'color'],
-            'line-width': 3
-        }
-    });
-    
-    const keyPoints = selectKeyPoints(track);
-    
-    // Add small circles for non-latest key points
-    const nonLatestPoints = keyPoints.filter(p => !p.isLatest);
+    const keyPoints = selectKeyPoints(track).filter(p => !p.isLatest);
     map.addSource('storm-points', { 
         type: 'geojson', 
         data: { 
             type: 'FeatureCollection', 
-            features: nonLatestPoints.map(p => ({ 
+            features: keyPoints.map(p => ({ 
                 type: 'Feature', 
                 geometry: { type: 'Point', coordinates: [p.longitude, p.latitude]}, 
                 properties: { 
@@ -256,6 +201,7 @@ function plotTrack(track) {
         }
     });
     
+    // ADD CLICK POPUP
     map.on('click', 'storm-points-layer', (e) => {
         const props = e.features[0].properties;
         const date = new Date(props.time);
@@ -275,6 +221,7 @@ function plotTrack(track) {
             .addTo(map);
     });
     
+    // CHANGE CURSOR ON HOVER
     map.on('mouseenter', 'storm-points-layer', () => {
         map.getCanvas().style.cursor = 'pointer';
     });
@@ -283,77 +230,32 @@ function plotTrack(track) {
         map.getCanvas().style.cursor = '';
     });
     
-    // Add markers ONLY at key points (already filtered by selectKeyPoints)
-    keyPoints.forEach(point => {
-        const vmax = point.vmax_kt || 0;
-        const isCycloneStrength = vmax >= scale.thresholds[1];
-        
-        if (!isCycloneStrength) {
-            addLowMarker(point);
-        } else {
-            addCycloneEye(point, point.isLatest);
-        }
-    });
+    addCycloneEye(track[track.length - 1]);
 }
 
-function addCycloneEye(point, isLatest) {
-    const vmax = point.vmax_kt || 0;
-    const cat = getCategory(vmax);
-    const scale = BASIN_SCALES[currentBasin];
-    const isCycloneStrength = vmax >= scale.thresholds[1];
-    
-    if (!isCycloneStrength) {
-        return;
-    }
-    
-    const text = getCategoryText(vmax);
-    const color = scale.textColors[cat];
+function addCycloneEye(point) {
+    const cat = getCategory(point.vmax_kt || 0);
+    const text = getCategoryText(point.vmax_kt || 0);
+    const color = getCategoryColor(cat);
     const el = document.createElement('div');
     el.style.cssText = 'width: 80px; height: 80px; cursor: pointer;';
-    
-    // Determine rotation direction based on hemisphere
-    const isNorthernHemisphere = point.latitude >= 0;
-    const rotationDirection = isNorthernHemisphere ? 'counter-clockwise' : 'clockwise';
-    
-    // Rotating animation ONLY for latest position
-    let rotationStyle = '';
-    if (isLatest) {
-        const animationName = isNorthernHemisphere ? 'rotate-ccw' : 'rotate-cw';
-        rotationStyle = `animation: ${animationName} 6s linear infinite;`;
-    }
-    
-    el.innerHTML = `
-        <div style="position: relative; width: 80px; height: 80px;">
-            <img src="/static/img/tc-eye.png" style="width: 80px; height: 80px; ${rotationStyle}">
-            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-weight: bold; font-size: 18px; color: ${color}; text-shadow: 0 0 3px white, 0 0 3px white;">
-                ${text}
-            </div>
-        </div>
-    `;
+    el.innerHTML = `<div style="position: relative; width: 80px; height: 80px;"><img src="/static/img/tc-eye.png" style="width: 80px; height: 80px; animation: rotate 6s linear infinite;"><div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-weight: bold; font-size: 18px; color: ${color}; text-shadow: 0 0 3px white, 0 0 3px white;">${text}</div></div>`;
     
     if (!document.getElementById('cyclone-eye-animation')) {
         const style = document.createElement('style');
         style.id = 'cyclone-eye-animation';
-        style.innerHTML = `
-            @keyframes rotate-cw { 
-                from { transform: rotate(0deg); } 
-                to { transform: rotate(360deg); } 
-            }
-            @keyframes rotate-ccw { 
-                from { transform: rotate(0deg); } 
-                to { transform: rotate(-360deg); } 
-            }
-        `;
+        style.innerHTML = '@keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }';
         document.head.appendChild(style);
     }
     
+    // ADD CLICK POPUP FOR EYE
     el.addEventListener('click', () => {
         const date = new Date(point.time);
         new maplibregl.Popup()
             .setLngLat([point.longitude, point.latitude])
             .setHTML(`
                 <div style="padding: 1rem; min-width: 240px; font-family: system-ui;">
-                    <strong style="font-size: 1.2rem; color: #1e40af;">${isLatest ? 'CURRENT POSITION' : 'HISTORICAL POSITION'}</strong><br>
+                    <strong style="font-size: 1.2rem; color: #1e40af;">CURRENT POSITION</strong><br>
                     <em style="color: #64748b;">${date.toUTCString()}</em><br><br>
                     <div style="display: grid; grid-template-columns: auto 1fr; gap: 0.5rem 1rem;">
                         <strong>Winds:</strong> <span>${point.vmax_kt} kt</span>
@@ -366,41 +268,7 @@ function addCycloneEye(point, isLatest) {
             .addTo(map);
     });
     
-    new maplibregl.Marker({element: el, anchor: 'center'}).setLngLat([point.longitude, point.latitude]).addTo(map);
-}
-
-function addLowMarker(point) {
-    const el = document.createElement('div');
-    el.style.cssText = 'width: 60px; height: 60px; cursor: pointer;';
-    
-    el.innerHTML = `
-        <div style="position: relative; width: 60px; height: 60px; background: rgba(94, 186, 255, 0.3); border: 2px solid #5ebaff; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
-            <div style="font-weight: bold; font-size: 14px; color: #000; text-shadow: 0 0 3px white, 0 0 3px white;">
-                LOW
-            </div>
-        </div>
-    `;
-    
-    el.addEventListener('click', () => {
-        const date = new Date(point.time);
-        new maplibregl.Popup()
-            .setLngLat([point.longitude, point.latitude])
-            .setHTML(`
-                <div style="padding: 1rem; min-width: 240px; font-family: system-ui;">
-                    <strong style="font-size: 1.2rem; color: #1e40af;">SUB-CYCLONE STRENGTH</strong><br>
-                    <em style="color: #64748b;">${date.toUTCString()}</em><br><br>
-                    <div style="display: grid; grid-template-columns: auto 1fr; gap: 0.5rem 1rem;">
-                        <strong>Winds:</strong> <span>${point.vmax_kt || 0} kt</span>
-                        <strong>Pressure:</strong> <span>${point.mslp_hpa || 0} mb</span>
-                        <strong>Status:</strong> <span>Tropical Low</span>
-                        <strong>Position:</strong> <span>${point.latitude.toFixed(2)}°, ${point.longitude.toFixed(2)}°</span>
-                    </div>
-                </div>
-            `)
-            .addTo(map);
-    });
-    
-    new maplibregl.Marker({element: el, anchor: 'center'}).setLngLat([point.longitude, point.latitude]).addTo(map);
+    eyeMarker = new maplibregl.Marker({element: el, anchor: 'center'}).setLngLat([point.longitude, point.latitude]).addTo(map);
 }
 
 function fitMapToTrack(track) {

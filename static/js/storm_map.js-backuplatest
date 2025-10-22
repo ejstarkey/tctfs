@@ -54,8 +54,8 @@ function initStormMap(stormId) {
     map = new maplibregl.Map({
         container: 'storm-map',
         style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
-        center: [0, 0],
-        zoom: 2
+        center: [140, 20],
+        zoom: 4
     });
 
     map.addControl(new maplibregl.NavigationControl(), 'top-right');
@@ -105,22 +105,17 @@ async function loadStormData(stormId) {
 function getCategory(vmax) {
     const scale = BASIN_SCALES[currentBasin];
     const thresholds = scale.thresholds;
-    
-    // thresholds for SH/IO: [34, 48, 64, 87, 108]
-    // categories: [0=Low, 1=Cat1, 2=Cat2, 3=Cat3, 4=Cat4, 5=Cat5]
-    
-    if (vmax < thresholds[1]) return 0;  // < 48kt = Tropical Low/TS (Category 0)
-    if (vmax < thresholds[2]) return 1;  // 48-63kt = Category 1
-    if (vmax < thresholds[3]) return 2;  // 64-86kt = Category 2
-    if (vmax < thresholds[4]) return 3;  // 87-107kt = Category 3
-    if (vmax < 140) return 4;  // 108-139kt = Category 4
-    return 5;  // 140+ = Category 5
+    if (vmax < thresholds[0]) return 0;
+    if (vmax < thresholds[1]) return 1;
+    if (vmax < thresholds[2]) return 2;
+    if (vmax < thresholds[3]) return 3;
+    if (vmax < thresholds[4]) return 4;
+    return 5;
 }
 
 function getCategoryText(vmax) {
     const cat = getCategory(vmax);
-    if (cat === 0) return 'LOW';
-    return cat.toString();
+    return cat === 0 ? 'LOW' : cat.toString();
 }
 
 function getCategoryName(vmax) {
@@ -193,6 +188,7 @@ function plotTrack(track) {
         });
     }
     
+    // Add track segments as individual features so they can be colored differently
     map.addSource('storm-track-segments', {
         type: 'geojson',
         data: {
@@ -201,6 +197,7 @@ function plotTrack(track) {
         }
     });
     
+    // Add glow layer for track segments
     map.addLayer({
         id: 'storm-track-glow',
         type: 'line',
@@ -213,6 +210,7 @@ function plotTrack(track) {
         }
     });
     
+    // Add main track line layer with category colors
     map.addLayer({
         id: 'storm-track-line',
         type: 'line',
@@ -223,15 +221,12 @@ function plotTrack(track) {
         }
     });
     
-    const keyPoints = selectKeyPoints(track);
-    
-    // Add small circles for non-latest key points
-    const nonLatestPoints = keyPoints.filter(p => !p.isLatest);
+    const keyPoints = selectKeyPoints(track).filter(p => !p.isLatest);
     map.addSource('storm-points', { 
         type: 'geojson', 
         data: { 
             type: 'FeatureCollection', 
-            features: nonLatestPoints.map(p => ({ 
+            features: keyPoints.map(p => ({ 
                 type: 'Feature', 
                 geometry: { type: 'Point', coordinates: [p.longitude, p.latitude]}, 
                 properties: { 
@@ -256,6 +251,7 @@ function plotTrack(track) {
         }
     });
     
+    // ADD CLICK POPUP
     map.on('click', 'storm-points-layer', (e) => {
         const props = e.features[0].properties;
         const date = new Date(props.time);
@@ -275,6 +271,7 @@ function plotTrack(track) {
             .addTo(map);
     });
     
+    // CHANGE CURSOR ON HOVER
     map.on('mouseenter', 'storm-points-layer', () => {
         map.getCanvas().style.cursor = 'pointer';
     });
@@ -283,26 +280,22 @@ function plotTrack(track) {
         map.getCanvas().style.cursor = '';
     });
     
-    // Add markers ONLY at key points (already filtered by selectKeyPoints)
-    keyPoints.forEach(point => {
-        const vmax = point.vmax_kt || 0;
-        const isCycloneStrength = vmax >= scale.thresholds[1];
-        
-        if (!isCycloneStrength) {
-            addLowMarker(point);
-        } else {
-            addCycloneEye(point, point.isLatest);
-        }
-    });
+    // Add cyclone eye only if latest position is Category 1+
+    addCycloneEye(track[track.length - 1]);
 }
 
-function addCycloneEye(point, isLatest) {
+function addCycloneEye(point) {
     const vmax = point.vmax_kt || 0;
     const cat = getCategory(vmax);
+    
+    // CRITICAL: Only show tc-eye.png for Category 1+ (cyclone strength)
+    // For SH/IO basins: Category 1+ means >= 48kt (thresholds[1])
+    // For AL/EP/WP basins: Category 1+ means >= 64kt (thresholds[1])
     const scale = BASIN_SCALES[currentBasin];
     const isCycloneStrength = vmax >= scale.thresholds[1];
     
     if (!isCycloneStrength) {
+        // Below cyclone strength - no tc-eye.png
         return;
     }
     
@@ -311,16 +304,9 @@ function addCycloneEye(point, isLatest) {
     const el = document.createElement('div');
     el.style.cssText = 'width: 80px; height: 80px; cursor: pointer;';
     
-    // Determine rotation direction based on hemisphere
-    const isNorthernHemisphere = point.latitude >= 0;
-    const rotationDirection = isNorthernHemisphere ? 'counter-clockwise' : 'clockwise';
-    
-    // Rotating animation ONLY for latest position
-    let rotationStyle = '';
-    if (isLatest) {
-        const animationName = isNorthernHemisphere ? 'rotate-ccw' : 'rotate-cw';
-        rotationStyle = `animation: ${animationName} 6s linear infinite;`;
-    }
+    // Create rotating or static tc-eye based on whether it's the latest position
+    // The rotating animation should ONLY be on the latest plot if it's cyclone strength
+    const rotationStyle = 'animation: rotate 6s linear infinite;';
     
     el.innerHTML = `
         <div style="position: relative; width: 80px; height: 80px;">
@@ -334,26 +320,18 @@ function addCycloneEye(point, isLatest) {
     if (!document.getElementById('cyclone-eye-animation')) {
         const style = document.createElement('style');
         style.id = 'cyclone-eye-animation';
-        style.innerHTML = `
-            @keyframes rotate-cw { 
-                from { transform: rotate(0deg); } 
-                to { transform: rotate(360deg); } 
-            }
-            @keyframes rotate-ccw { 
-                from { transform: rotate(0deg); } 
-                to { transform: rotate(-360deg); } 
-            }
-        `;
+        style.innerHTML = '@keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }';
         document.head.appendChild(style);
     }
     
+    // ADD CLICK POPUP FOR EYE
     el.addEventListener('click', () => {
         const date = new Date(point.time);
         new maplibregl.Popup()
             .setLngLat([point.longitude, point.latitude])
             .setHTML(`
                 <div style="padding: 1rem; min-width: 240px; font-family: system-ui;">
-                    <strong style="font-size: 1.2rem; color: #1e40af;">${isLatest ? 'CURRENT POSITION' : 'HISTORICAL POSITION'}</strong><br>
+                    <strong style="font-size: 1.2rem; color: #1e40af;">CURRENT POSITION</strong><br>
                     <em style="color: #64748b;">${date.toUTCString()}</em><br><br>
                     <div style="display: grid; grid-template-columns: auto 1fr; gap: 0.5rem 1rem;">
                         <strong>Winds:</strong> <span>${point.vmax_kt} kt</span>
@@ -366,41 +344,7 @@ function addCycloneEye(point, isLatest) {
             .addTo(map);
     });
     
-    new maplibregl.Marker({element: el, anchor: 'center'}).setLngLat([point.longitude, point.latitude]).addTo(map);
-}
-
-function addLowMarker(point) {
-    const el = document.createElement('div');
-    el.style.cssText = 'width: 60px; height: 60px; cursor: pointer;';
-    
-    el.innerHTML = `
-        <div style="position: relative; width: 60px; height: 60px; background: rgba(94, 186, 255, 0.3); border: 2px solid #5ebaff; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
-            <div style="font-weight: bold; font-size: 14px; color: #000; text-shadow: 0 0 3px white, 0 0 3px white;">
-                LOW
-            </div>
-        </div>
-    `;
-    
-    el.addEventListener('click', () => {
-        const date = new Date(point.time);
-        new maplibregl.Popup()
-            .setLngLat([point.longitude, point.latitude])
-            .setHTML(`
-                <div style="padding: 1rem; min-width: 240px; font-family: system-ui;">
-                    <strong style="font-size: 1.2rem; color: #1e40af;">SUB-CYCLONE STRENGTH</strong><br>
-                    <em style="color: #64748b;">${date.toUTCString()}</em><br><br>
-                    <div style="display: grid; grid-template-columns: auto 1fr; gap: 0.5rem 1rem;">
-                        <strong>Winds:</strong> <span>${point.vmax_kt || 0} kt</span>
-                        <strong>Pressure:</strong> <span>${point.mslp_hpa || 0} mb</span>
-                        <strong>Status:</strong> <span>Tropical Low</span>
-                        <strong>Position:</strong> <span>${point.latitude.toFixed(2)}°, ${point.longitude.toFixed(2)}°</span>
-                    </div>
-                </div>
-            `)
-            .addTo(map);
-    });
-    
-    new maplibregl.Marker({element: el, anchor: 'center'}).setLngLat([point.longitude, point.latitude]).addTo(map);
+    eyeMarker = new maplibregl.Marker({element: el, anchor: 'center'}).setLngLat([point.longitude, point.latitude]).addTo(map);
 }
 
 function fitMapToTrack(track) {
